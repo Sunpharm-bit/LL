@@ -22,6 +22,7 @@
             --expiring30: #ff9800;
             --expiring7: #f44336;
             --expired: #d32f2f;
+            --expired-bg: #ffebee;
         }
 
         * {
@@ -188,7 +189,7 @@
             }
         }
 
-        #search, #clear {
+        #search, #clear, #expired-filter {
             height: 50px;
             padding: 0 20px;
             border: none;
@@ -205,7 +206,7 @@
         }
 
         @media (max-width: 480px) {
-            #search, #clear {
+            #search, #clear, #expired-filter {
                 flex: 1;
                 min-width: auto;
             }
@@ -229,6 +230,70 @@
         #clear:hover, #clear:active {
             background-color: #5a6268;
             transform: translateY(-2px);
+        }
+
+        #expired-filter {
+            background-color: var(--expired);
+            color: white;
+        }
+
+        #expired-filter:hover, #expired-filter:active {
+            background-color: #b71c1c;
+            transform: translateY(-2px);
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--secondary-color);
+            margin-right: 10px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background-color: white;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--secondary-color);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-btn.active {
+            background-color: var(--expired);
+            border-color: var(--expired);
+            color: white;
+        }
+
+        .filter-btn:hover {
+            background-color: #f8f9fa;
+        }
+
+        .filter-btn.active:hover {
+            background-color: #b71c1c;
+        }
+
+        .expired-count-badge {
+            background-color: var(--expired);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 5px;
         }
 
         .content-container {
@@ -344,6 +409,10 @@
             background-color: #f8f9fa;
         }
 
+        tr.expired-row {
+            background-color: var(--expired-bg);
+        }
+
         .expir30 {
             color: var(--expiring30);
             font-weight: 600;
@@ -410,6 +479,11 @@
             text-decoration: line-through;
         }
 
+        .legend-expired-bg {
+            background-color: var(--expired-bg);
+            border: 1px solid var(--expired);
+        }
+
         .footer {
             text-align: center;
             margin-top: 25px;
@@ -473,6 +547,16 @@
                 padding: 8px 6px;
                 font-size: 0.85rem;
             }
+            
+            .filter-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .filter-btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
 
         /* 防止iOS Safari缩放 */
@@ -523,7 +607,32 @@
                     <i class="fas fa-eraser"></i>
                     清除
                 </button>
+                <button type="button" id="expired-filter">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    过期筛选
+                </button>
             </div>
+        </div>
+        
+        <div class="filter-bar">
+            <span class="filter-label">快速筛选:</span>
+            <button class="filter-btn" id="show-all">
+                <i class="fas fa-list"></i>
+                全部显示
+            </button>
+            <button class="filter-btn" id="show-expired">
+                <i class="fas fa-exclamation-circle"></i>
+                已过期
+                <span class="expired-count-badge" id="expired-count">0</span>
+            </button>
+            <button class="filter-btn" id="show-expiring7">
+                <i class="fas fa-clock"></i>
+                7天内过期
+            </button>
+            <button class="filter-btn" id="show-expiring30">
+                <i class="fas fa-hourglass-half"></i>
+                30天内过期
+            </button>
         </div>
     </div>
 
@@ -552,11 +661,15 @@
                 <div class="legend-color legend-expired"></div>
                 <span>红色加删除线表示已过期</span>
             </div>
+            <div class="legend-item">
+                <div class="legend-color legend-expired-bg"></div>
+                <span>粉色背景突出显示过期项</span>
+            </div>
         </div>
     </div>
 
     <div class="footer">
-        <p>仪器设备/对照品效期查询 &copy; 2026 | 版本 4.0</p>
+        <p>仪器设备/对照品效期查询 &copy; 2026 | 版本 5.0 - 新增过期筛选功能</p>
     </div>
 
     <script>
@@ -584,6 +697,8 @@
         };
         
         let currentSearchType = 'both'; // both, device, standard
+        let currentFilterType = 'none'; // none, expired, expiring7, expiring30
+        let lastSearchKeyword = '';
 
         $(() => {
             // 初始化加载数据
@@ -604,13 +719,46 @@
             // 清除按钮事件
             $("#clear").click(() => {
                 $("#keyword").val('');
-                $("#content").html(`
-                    <div class="no-data">
-                        <i class="fas fa-search"></i>
-                        <h3>请输入查询关键字开始搜索</h3>
-                        <p>可以输入设备编号、名称或对照品批号进行查询</p>
-                    </div>
-                `);
+                lastSearchKeyword = '';
+                currentFilterType = 'none';
+                showAllData();
+            });
+            
+            // 过期筛选按钮
+            $("#expired-filter").click(() => {
+                $("#keyword").val('');
+                lastSearchKeyword = '';
+                currentFilterType = 'expired';
+                showFilteredData('expired');
+            });
+            
+            // 快速筛选按钮
+            $("#show-all").click(() => {
+                $("#keyword").val('');
+                lastSearchKeyword = '';
+                currentFilterType = 'none';
+                showAllData();
+            });
+            
+            $("#show-expired").click(() => {
+                $("#keyword").val('');
+                lastSearchKeyword = '';
+                currentFilterType = 'expired';
+                showFilteredData('expired');
+            });
+            
+            $("#show-expiring7").click(() => {
+                $("#keyword").val('');
+                lastSearchKeyword = '';
+                currentFilterType = 'expiring7';
+                showFilteredData('expiring7');
+            });
+            
+            $("#show-expiring30").click(() => {
+                $("#keyword").val('');
+                lastSearchKeyword = '';
+                currentFilterType = 'expiring30';
+                showFilteredData('expiring30');
             });
             
             // 查询类型切换
@@ -618,6 +766,17 @@
                 $(".type-btn").removeClass("active");
                 $(this).addClass("active");
                 currentSearchType = $(this).data("type");
+                
+                // 如果有当前显示的内容，重新显示
+                if ($("#content").children().length > 0 && !$("#content").find('.loading').length) {
+                    if (lastSearchKeyword) {
+                        performSearch();
+                    } else if (currentFilterType !== 'none') {
+                        showFilteredData(currentFilterType);
+                    } else {
+                        showAllData();
+                    }
+                }
             });
         });
 
@@ -645,14 +804,10 @@
             Promise.all(promises)
                 .then(results => {
                     let successCount = results.filter(r => r.includes("完成")).length;
+                    updateExpiredCount();
+                    
                     if (successCount === databases.length) {
-                        $("#content").html(`
-                            <div class="no-data">
-                                <i class="fas fa-check-circle" style="color: #4CAF50;"></i>
-                                <h3>数据加载完成</h3>
-                                <p>${results.join('<br>')}</p>
-                            </div>
-                        `);
+                        showAllData();
                     } else {
                         $("#content").html(`
                             <div class="no-data">
@@ -674,16 +829,136 @@
                 });
         }
 
-        function performSearch() {
-            let keyword = $("#keyword").val().trim().toLowerCase();
-            if (!keyword) {
+        function updateExpiredCount() {
+            let expiredCount = 0;
+            
+            info.device.forEach(item => {
+                if (item.expir && isExpired(item.expir)) {
+                    expiredCount++;
+                }
+            });
+            
+            info.standard.forEach(item => {
+                if (item.expir && isExpired(item.expir)) {
+                    expiredCount++;
+                }
+            });
+            
+            $("#expired-count").text(expiredCount);
+        }
+
+        function isExpired(expirDate) {
+            if (!expirDate) return false;
+            
+            let date = new Date();
+            let array = expirDate.split(".");
+            date.setFullYear(array[0], array[1] - 1, array[2]);
+
+            let day = (date - Date.now()) / 86400000;
+            return day <= 0;
+        }
+
+        function getDaysRemaining(expirDate) {
+            if (!expirDate) return null;
+            
+            let date = new Date();
+            let array = expirDate.split(".");
+            date.setFullYear(array[0], array[1] - 1, array[2]);
+
+            return (date - Date.now()) / 86400000;
+        }
+
+        function showAllData() {
+            $("#content").empty();
+            
+            let hasData = false;
+            
+            if (currentSearchType === 'device' || currentSearchType === 'both') {
+                if (info.device && info.device.length > 0) {
+                    hasData = true;
+                    displayDeviceResults(info.device);
+                }
+            }
+            
+            if (currentSearchType === 'standard' || currentSearchType === 'both') {
+                if (info.standard && info.standard.length > 0) {
+                    hasData = true;
+                    displayStandardResults(info.standard);
+                }
+            }
+
+            if (!hasData) {
                 $("#content").html(`
                     <div class="no-data">
-                        <i class="fas fa-exclamation-circle" style="color: #FF9800;"></i>
-                        <h3>请输入查询关键字</h3>
-                        <p>搜索框不能为空，请输入设备编号、名称或对照品批号进行查询</p>
+                        <i class="fas fa-database" style="color: #d1d8e0;"></i>
+                        <h3>暂无数据</h3>
+                        <p>当前没有可显示的数据</p>
                     </div>
                 `);
+            }
+        }
+
+        function showFilteredData(filterType) {
+            $("#content").empty();
+            
+            let hasResults = false;
+            
+            if (currentSearchType === 'device' || currentSearchType === 'both') {
+                let filteredDevice = filterData(info.device, filterType);
+                if (filteredDevice.length > 0) {
+                    hasResults = true;
+                    displayDeviceResults(filteredDevice);
+                }
+            }
+            
+            if (currentSearchType === 'standard' || currentSearchType === 'both') {
+                let filteredStandard = filterData(info.standard, filterType);
+                if (filteredStandard.length > 0) {
+                    hasResults = true;
+                    displayStandardResults(filteredStandard);
+                }
+            }
+
+            if (!hasResults) {
+                let filterText = filterType === 'expired' ? '已过期' : 
+                                filterType === 'expiring7' ? '7天内过期' : '30天内过期';
+                $("#content").html(`
+                    <div class="no-data">
+                        <i class="fas fa-check-circle" style="color: #4CAF50;"></i>
+                        <h3>没有${filterText}的项目</h3>
+                        <p>当前没有符合条件的记录</p>
+                    </div>
+                `);
+            }
+        }
+
+        function filterData(data, filterType) {
+            return data.filter(item => {
+                if (!item.expir) return false;
+                
+                let days = getDaysRemaining(item.expir);
+                if (days === null) return false;
+                
+                switch(filterType) {
+                    case 'expired':
+                        return days <= 0;
+                    case 'expiring7':
+                        return days > 0 && days <= 7;
+                    case 'expiring30':
+                        return days > 0 && days <= 30;
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        function performSearch() {
+            let keyword = $("#keyword").val().trim().toLowerCase();
+            lastSearchKeyword = keyword;
+            currentFilterType = 'none';
+            
+            if (!keyword) {
+                showAllData();
                 return;
             }
 
@@ -769,11 +1044,17 @@
             
             results.forEach(item => {
                 let row = $('<tr></tr>');
-                //       名称
+                
+                // 如果是过期项目，添加特殊类
+                if (item.expir && isExpired(item.expir)) {
+                    row.addClass('expired-row');
+                }
+                
+                // 名称
                 row.append(`<td>${item.name || '—'}</td>`);
-                //       编号
+                // 编号
                 row.append(`<td>${item.id || '—'}</td>`);
-                //      有效期至
+                // 有效期至
                 let expirCell = $('<td></td>');
                 expirCell.html(checkExpir(item.expir || ''));
                 row.append(expirCell);
@@ -813,15 +1094,21 @@
             
             results.forEach(item => {
                 let row = $('<tr></tr>');
-                //      名称
+                
+                // 如果是过期项目，添加特殊类
+                if (item.expir && isExpired(item.expir)) {
+                    row.addClass('expired-row');
+                }
+                
+                // 名称
                 row.append(`<td>${item.kind || '—'}</td>`);
-                //      批号
+                // 批号
                 row.append(`<td>${item.batch || '—'}</td>`);
-                //     有效期至
+                // 有效期至
                 let expirCell = $('<td></td>');
                 expirCell.html(checkExpir(item.expir || ''));
                 row.append(expirCell);
-                //       来源
+                // 来源
                 row.append(`<td>${item.source || '—'}</td>`);
                 
                 tbody.append(row);
