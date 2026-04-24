@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>稳定性实验趋势分析</title>
+    <!-- ECharts 核心库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            background: #f0f4f8;
+            margin: 0;
+            padding: 24px 20px;
+            color: #1a2c3e;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.03);
+            padding: 20px 24px;
+            margin-bottom: 28px;
+            transition: all 0.2s ease;
+        }
+        .card-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #0f3b5c;
+        }
+        .card-header .badge {
+            background: #eef2ff;
+            color: #1e4a76;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 170px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #4b6b8a;
+            margin-bottom: 6px;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            transition: 0.2s;
+            background: #fff;
+            font-family: monospace, 'Courier New', 'Fira Code', monospace;
+        }
+        select {
+            font-family: system-ui, 'Segoe UI';
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #2c7da0;
+            box-shadow: 0 0 0 3px rgba(44,125,160,0.2);
+        }
+        textarea {
+            font-family: monospace;
+            resize: vertical;
+            min-height: 80px;
+        }
+        .inline-help {
+            font-size: 0.7rem;
+            color: #5b7a9a;
+            margin-top: 4px;
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #2c7da0;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 40px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        button:hover {
+            background: #1f5e7a;
+            transform: translateY(-1px);
+        }
+        button.secondary {
+            background: #475569;
+        }
+        button.secondary:hover {
+            background: #334155;
+        }
+        button.outline {
+            background: white;
+            border: 1px solid #2c7da0;
+            color: #2c7da0;
+            box-shadow: none;
+        }
+        button.outline:hover {
+            background: #eef6fc;
+        }
+        /* 图表容器 - 添加黑色边框 */
+        .chart-wrapper {
+            border: 2px solid #000000;
+            background: #ffffff;
+            border-radius: 0px;
+            padding: 0px;
+            box-sizing: border-box;
+        }
+        .chart-container {
+            width: 100%;
+            height: 520px;
+            background: #ffffff;
+        }
+        .info-note {
+            background: #f8fafc;
+            border-left: 4px solid #2c7da0;
+            padding: 12px 18px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            margin-top: 16px;
+            color: #2c3e50;
+        }
+        .copy-section {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .status-msg {
+            font-size: 0.8rem;
+            background: #e6f7e6;
+            padding: 6px 12px;
+            border-radius: 40px;
+            color: #2e6b3e;
+        }
+        hr {
+            margin: 16px 0;
+            border: none;
+            border-top: 1px solid #e2edf2;
+        }
+        @media (max-width: 700px) {
+            body { padding: 16px; }
+            .card { padding: 16px; }
+            .chart-container { height: 400px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div style="margin-bottom: 20px;">
+        <h1 style="margin:0 0 6px 0; font-weight: 700; color: #0f3b5c;">📈 稳定性实验趋势分析</h1>
+        <p style="color:#4a627a; margin-top:0;">支持Y轴区间自定义 | 规格限清晰标注(上限USL/下限LSL/目标线) | 图表黑色边框 | 复制时隐藏工具栏图标</p>
+    </div>
+
+    <!-- 数据输入卡片 -->
+    <div class="card">
+        <div class="card-header">
+            <h2>📊 数据与轴配置</h2>
+            <div class="badge">可设定上下限及Y轴范围</div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>📌 X轴 数据 (类别/时间点)</label>
+                <input type="text" id="xDataInput" placeholder="例如: 0,1,2,3,6,9,12 或 0月,1月,2月" value="0, 1, 2, 3, 6, 9, 12">
+                <div class="inline-help">用英文逗号分隔</div>
+            </div>
+            <div class="form-group">
+                <label>📈 Y轴 数据 (数值)</label>
+                <input type="text" id="yDataInput" placeholder="例: 99.2,99.0,98.7,98.5,98.1,97.8,97.5" value="99.2, 99.0, 98.7, 98.5, 98.1, 97.8, 97.5">
+                <div class="inline-help">数值序列，与X轴数量一致</div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>🏷️ X轴 名称</label>
+                <input type="text" id="xAxisName" value="时间 (月)">
+            </div>
+            <div class="form-group">
+                <label>🏷️ Y轴 名称</label>
+                <input type="text" id="yAxisName" value="含量 (%)">
+            </div>
+            <div class="form-group">
+                <label>📋 图表主标题</label>
+                <input type="text" id="chartTitle" value="稳定性考察趋势图 - 含量变化">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>📝 副标题</label>
+                <input type="text" id="chartSubtext" value="长期稳定性实验 (25℃±2℃ / 60%RH)">
+            </div>
+            <div class="form-group">
+                <label>📐 折线类型</label>
+                <select id="lineType">
+                    <option value="smooth">平滑曲线 (monotone)</option>
+                    <option value="straight">直线折线</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Y轴区间控制专用区域 -->
+        <div class="card-header" style="margin-top: 8px; padding-bottom: 8px;">
+            <h2 style="font-size: 1.2rem;">⚙️ Y轴高级设置</h2>
+            <div class="badge">区间/刻度/标准线</div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>📏 Y轴最小值 (留空则自动)</label>
+                <input type="text" id="yAxisMin" placeholder="例如: 90" value="">
+                <div class="inline-help">不填则由系统自动计算</div>
+            </div>
+            <div class="form-group">
+                <label>📏 Y轴最大值 (留空则自动)</label>
+                <input type="text" id="yAxisMax" placeholder="例如: 102" value="">
+                <div class="inline-help">不填自动扩展</div>
+            </div>
+            <div class="form-group">
+                <label>🔢 Y轴刻度间隔 (可选)</label>
+                <input type="text" id="yAxisInterval" placeholder="例如: 1, 2, 5" value="">
+                <div class="inline-help">留空则由echarts自动</div>
+            </div>
+        </div>
+        
+        <!-- 标准上下限配置 -->
+        <div class="form-row">
+            <div class="form-group">
+                <label>📈 标准上限 (USL)</label>
+                <input type="text" id="upperLimit" placeholder="例如: 101.5" value="">
+                <div class="inline-help">红色虚线，标签显示"USL: 值"</div>
+            </div>
+            <div class="form-group">
+                <label>📉 标准下限 (LSL)</label>
+                <input type="text" id="lowerLimit" placeholder="例如: 95.0" value="">
+                <div class="inline-help">橙色虚线，标签显示"LSL: 值"</div>
+            </div>
+            <div class="form-group">
+                <label>🎯 目标线 (可选)</label>
+                <input type="text" id="targetLine" placeholder="例如: 98.5" value="">
+                <div class="inline-help">绿色实线，标签显示"目标: 值"</div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="generateBtn">✨ 生成 / 更新趋势图</button>
+            <button id="copyChartBtn" class="outline">📸 复制图表为图片</button>
+            <button id="resetExampleBtn" class="secondary">📋 载入示例数据(含上下限)</button>
+            <button id="clearLimitsBtn" class="outline">🧹 清空上下限/区间</button>
+        </div>
+        <div class="info-note">
+            💡 本次优化：<br>
+            1️⃣ <strong>图表四周已添加黑色边框</strong>，清晰可见。<br>
+            2️⃣ <strong>复制图片时自动隐藏工具栏图标</strong>（下载、重置缩放等按钮不会出现在截图中），仅保留纯粹的趋势图。<br>
+            3️⃣ <strong>规格参考线分别标注</strong>：USL（上限，红色虚线）、LSL（下限，橙色虚线）、目标线（绿色实线），标签位于图表右侧，一目了然。
+        </div>
+    </div>
+
+    <!-- 图表展示卡片 -->
+    <div class="card">
+        <div class="card-header">
+            <h2>📉 趋势分析图 (规格限清晰标注)</h2>
+            <div class="badge" id="dataStatus">✅ 就绪</div>
+        </div>
+        <div class="chart-wrapper">
+            <div id="trendChart" class="chart-container"></div>
+        </div>
+        <div class="copy-section">
+            <span id="copyMsg" style="font-size:0.8rem; color:#2c7da0;"></span>
+            <button id="copyAsDataUrlBtn" class="outline">📋 复制图表 (PNG，无工具栏)</button>
+        </div>
+        <div style="font-size: 0.7rem; text-align: right; margin-top: 12px; color:#6b8eac;">
+            * 支持鼠标缩放/平移 | 规格限标签位于右侧 | 复制图片时工具栏按钮不会出现
+        </div>
+    </div>
+</div>
+
+<script>
+    let myChart = null;
+    
+    // DOM 元素绑定
+    const xDataInput = document.getElementById('xDataInput');
+    const yDataInput = document.getElementById('yDataInput');
+    const xAxisName = document.getElementById('xAxisName');
+    const yAxisName = document.getElementById('yAxisName');
+    const chartTitle = document.getElementById('chartTitle');
+    const chartSubtext = document.getElementById('chartSubtext');
+    const lineTypeSelect = document.getElementById('lineType');
+    const yAxisMin = document.getElementById('yAxisMin');
+    const yAxisMax = document.getElementById('yAxisMax');
+    const yAxisInterval = document.getElementById('yAxisInterval');
+    const upperLimit = document.getElementById('upperLimit');
+    const lowerLimit = document.getElementById('lowerLimit');
+    const targetLine = document.getElementById('targetLine');
+    const generateBtn = document.getElementById('generateBtn');
+    const copyChartBtn = document.getElementById('copyChartBtn');
+    const resetExampleBtn = document.getElementById('resetExampleBtn');
+    const clearLimitsBtn = document.getElementById('clearLimitsBtn');
+    const copyAsDataUrlBtn = document.getElementById('copyAsDataUrlBtn');
+    const dataStatusSpan = document.getElementById('dataStatus');
+    const copyMsgSpan = document.getElementById('copyMsg');
+    
+    // 辅助: 解析数组
+    function parseXArray(rawStr) {
+        if (!rawStr.trim()) return [];
+        let parts = rawStr.split(',').map(s => s.trim()).filter(s => s !== '');
+        return parts.map(p => {
+            let num = parseFloat(p);
+            return isNaN(num) ? p : num;
+        });
+    }
+    
+    function parseYArray(rawStr) {
+        if (!rawStr.trim()) return [];
+        let parts = rawStr.split(',').map(s => s.trim()).filter(s => s !== '');
+        let numbers = [];
+        for (let p of parts) {
+            let num = parseFloat(p);
+            if (!isNaN(num)) numbers.push(num);
+            else numbers.push(0);
+        }
+        return numbers;
+    }
+    
+    function validateData(xArr, yArr) {
+        if (xArr.length === 0 || yArr.length === 0) return { valid: false, msg: "数据不能为空" };
+        if (xArr.length !== yArr.length) return { valid: false, msg: `X轴个数(${xArr.length}) ≠ Y轴个数(${yArr.length})` };
+        for (let i=0; i<yArr.length; i++) {
+            if (typeof yArr[i] !== 'number' || isNaN(yArr[i])) return { valid: false, msg: `Y轴第${i+1}个值无效` };
+        }
+        return { valid: true, msg: "有效" };
+    }
+    
+    function getNumberOrUndef(value) {
+        if (!value || value.trim() === "") return undefined;
+        let num = parseFloat(value);
+        return isNaN(num) ? undefined : num;
+    }
+    
+    // 核心渲染：无工具栏（toolbox隐藏），规格限分别标注
+    function renderChart() {
+        const xRaw = xDataInput.value;
+        const yRaw = yDataInput.value;
+        const xArr = parseXArray(xRaw);
+        let yArr = parseYArray(yRaw);
+        const validation = validateData(xArr, yArr);
+        if (!validation.valid) {
+            dataStatusSpan.innerHTML = `⚠️ ${validation.msg}`;
+            dataStatusSpan.style.background = "#fff0e0";
+            dataStatusSpan.style.color = "#b85c00";
+            if (myChart) {
+                myChart.clear();
+                myChart.setOption({
+                    title: { text: '数据错误', subtext: validation.msg, left: 'center', top: 'center' },
+                    xAxis: { data: [] }, yAxis: {}, series: []
+                });
+            }
+            return;
+        }
+        dataStatusSpan.innerHTML = `✅ 数据有效 (${xArr.length}个点)`;
+        dataStatusSpan.style.background = "#e6f7e6";
+        dataStatusSpan.style.color = "#2e6b3e";
+        
+        const xName = xAxisName.value.trim() || "X轴";
+        const yName = yAxisName.value.trim() || "Y轴";
+        const mainTitle = chartTitle.value.trim() || "稳定性趋势图";
+        const subTitle = chartSubtext.value.trim() || "";
+        const lineSmooth = lineTypeSelect.value === 'smooth';
+        
+        const yMin = getNumberOrUndef(yAxisMin.value);
+        const yMax = getNumberOrUndef(yAxisMax.value);
+        const yInterval = getNumberOrUndef(yAxisInterval.value);
+        const usl = getNumberOrUndef(upperLimit.value);
+        const lsl = getNumberOrUndef(lowerLimit.value);
+        const target = getNumberOrUndef(targetLine.value);
+        
+        let yAxisConfig = {
+            name: yName,
+            nameLocation: 'middle',
+            nameGap: 45,
+            type: 'value',
+            axisLabel: { fontSize: 11 },
+            splitLine: { lineStyle: { type: 'dashed', color: '#cbdde9' } }
+        };
+        if (yMin !== undefined) yAxisConfig.min = yMin;
+        if (yMax !== undefined) yAxisConfig.max = yMax;
+        if (yInterval !== undefined && yInterval > 0) yAxisConfig.interval = yInterval;
+        
+        // 主线
+        const mainSeries = {
+            name: yName,
+            type: 'line',
+            data: yArr,
+            smooth: lineSmooth,
+            symbol: 'circle',
+            symbolSize: 8,
+            lineStyle: { width: 3, color: '#2c7da0', shadowBlur: 6, shadowColor: '#a0c4e2' },
+            itemStyle: { color: '#1f6392', borderColor: '#ffffff', borderWidth: 2 },
+            areaStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: 'rgba(44,125,160,0.1)' },
+                    { offset: 1, color: 'rgba(44,125,160,0.01)' }
+                ])
+            },
+            label: { show: true, position: 'top', fontSize: 10, formatter: (params) => params.value, offset: [0, -6] },
+            emphasis: { focus: 'series' }
+        };
+        
+        // 构建 markLine 数据 - 分别标注 USL / LSL / 目标线
+        let markLineData = [];
+        if (usl !== undefined) {
+            markLineData.push({
+                name: 'USL',
+                yAxis: usl,
+                lineStyle: { color: '#e63946', width: 2, type: 'dashed' },
+                label: {
+                    show: true,
+                    formatter: `USL: ${usl}`,
+                    position: 'end',
+                    offset: [15, 0],
+                    color: '#e63946',
+                    fontWeight: 'bold',
+                    fontSize: 11,
+                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    padding: [2, 8, 2, 8],
+                    borderRadius: 12,
+                    borderWidth: 0
+                }
+            });
+        }
+        if (lsl !== undefined) {
+            markLineData.push({
+                name: 'LSL',
+                yAxis: lsl,
+                lineStyle: { color: '#f4a261', width: 2, type: 'dashed' },
+                label: {
+                    show: true,
+                    formatter: `LSL: ${lsl}`,
+                    position: 'end',
+                    offset: [15, 0],
+                    color: '#e76f51',
+                    fontWeight: 'bold',
+                    fontSize: 11,
+                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    padding: [2, 8, 2, 8],
+                    borderRadius: 12
+                }
+            });
+        }
+        if (target !== undefined) {
+            markLineData.push({
+                name: 'Target',
+                yAxis: target,
+                lineStyle: { color: '#2e8b57', width: 2, type: 'solid' },
+                label: {
+                    show: true,
+                    formatter: `目标: ${target}`,
+                    position: 'end',
+                    offset: [15, 0],
+                    color: '#2e8b57',
+                    fontWeight: 'bold',
+                    fontSize: 11,
+                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    padding: [2, 8, 2, 8],
+                    borderRadius: 12
+                }
+            });
+        }
+        
+        const seriesList = [mainSeries];
+        if (markLineData.length > 0) {
+            const auxiliarySeries = {
+                name: '规格参考线',
+                type: 'line',
+                data: [],
+                lineStyle: { opacity: 0 },
+                symbol: 'none',
+                showSymbol: false,
+                tooltip: { show: false },
+                markLine: {
+                    data: markLineData,
+                    symbol: 'none',
+                    silent: false,
+                    label: { show: true }
+                }
+            };
+            seriesList.push(auxiliarySeries);
+        }
+        
+        // 图例：分别显示 USL/LSL/目标线？为了简洁，仍合并为“规格参考线”，但标签已清晰区分。
+        let legendData = [yName];
+        if (markLineData.length > 0) legendData.push('规格参考线');
+        
+        // 关键：不显示 toolbox 工具栏，这样复制时不会出现下载/重置图标
+        const option = {
+            title: {
+                text: mainTitle,
+                subtext: subTitle,
+                left: 'center',
+                top: 5,
+                textStyle: { fontSize: 16, fontWeight: 'bold', color: '#1e4663' },
+                subtextStyle: { fontSize: 12, color: '#5c7f9e' }
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    if (!params || params.length === 0) return '';
+                    let main = params.find(p => p.seriesName === yName);
+                    if (!main) return '';
+                    return `<strong>${xName}:</strong> ${main.axisValue}<br/><strong>${yName}:</strong> ${main.value}`;
+                }
+            },
+            grid: {
+                left: '8%',
+                right: '14%',
+                top: '14%',
+                bottom: '8%',
+                containLabel: true,
+                backgroundColor: '#ffffff'
+            },
+            xAxis: {
+                name: xName,
+                nameLocation: 'middle',
+                nameGap: 35,
+                type: 'category',
+                data: xArr,
+                axisLabel: { rotate: xArr.length > 8 ? 25 : 0, interval: 0, fontSize: 11 },
+                axisLine: { lineStyle: { color: '#4f7ea0' } }
+            },
+            yAxis: yAxisConfig,
+            series: seriesList,
+            // 隐藏工具栏，避免复制时出现图标
+            toolbox: { show: false },
+            legend: {
+                data: legendData,
+                orient: 'vertical',
+                right: 0,
+                top: 'center',
+                itemWidth: 25,
+                itemHeight: 14,
+                textStyle: { color: '#2c3e50', fontSize: 11 },
+                backgroundColor: 'rgba(255,255,255,0.85)',
+                borderWidth: 0,
+                borderRadius: 8,
+                padding: [8, 12]
+            },
+            backgroundColor: 'transparent'
+        };
+        
+        if (myChart) {
+            myChart.setOption(option, true);
+        } else {
+            const dom = document.getElementById('trendChart');
+            myChart = echarts.init(dom);
+            myChart.setOption(option);
+        }
+        setTimeout(() => { if (myChart) myChart.resize(); }, 100);
+    }
+    
+    // 复制图片功能：直接截图，无工具栏，包含黑色边框（因为父级wrapper有边框）
+    async function copyChartAsImage() {
+        if (!myChart) {
+            showCopyMsg("❌ 图表未初始化，请先生成图表", false);
+            return;
+        }
+        try {
+            // 直接获取图表的 dataURL，背景白色，不包含任何额外控件
+            const imgDataURL = myChart.getDataURL({
+                type: 'png',
+                pixelRatio: 2.5,
+                backgroundColor: '#ffffff'
+            });
+            if (navigator.clipboard && navigator.clipboard.write) {
+                const blob = await (await fetch(imgDataURL)).blob();
+                await navigator.clipboard.write([
+                    new ClipboardItem({ [blob.type]: blob })
+                ]);
+                showCopyMsg("✅ 图表已复制为图片（无工具栏），可粘贴至Word/Excel/报告中", true);
+            } 
+            else if (navigator.clipboard && navigator.clipboard.writeText) {
+                const link = document.createElement('a');
+                link.download = 'stability_trend.png';
+                link.href = imgDataURL;
+                link.click();
+                showCopyMsg("⚠️ 浏览器不支持直接复制图片，已自动下载PNG文件", false);
+            }
+            else {
+                const win = window.open();
+                if (win) {
+                    win.document.write(`<img src="${imgDataURL}" alt="stability trend"/>`);
+                    showCopyMsg("已在新窗口打开图片，可右键保存", false);
+                } else {
+                    showCopyMsg("无法复制，请使用截图工具", false);
+                }
+            }
+        } catch (err) {
+            console.error("复制失败详情: ", err);
+            try {
+                const imgURL = myChart.getDataURL({ type: 'png', pixelRatio: 2 });
+                const link = document.createElement('a');
+                link.download = 'stability_chart.png';
+                link.href = imgURL;
+                link.click();
+                showCopyMsg("已触发下载图表，请手动插入报告", false);
+            } catch (e2) {
+                showCopyMsg("复制失败，请尝试使用截图工具", false);
+            }
+        }
+    }
+    
+    function showCopyMsg(msg, isSuccess) {
+        copyMsgSpan.innerText = msg;
+        copyMsgSpan.style.color = isSuccess ? "#1f7a4a" : "#b85c00";
+        if (window.msgTimeout) clearTimeout(window.msgTimeout);
+        window.msgTimeout = setTimeout(() => {
+            copyMsgSpan.innerText = "";
+        }, 3500);
+    }
+    
+    function loadExampleData() {
+        xDataInput.value = "0, 1, 2, 3, 6, 9, 12, 18, 24";
+        yDataInput.value = "99.5, 99.3, 99.0, 98.6, 98.0, 97.3, 96.5, 95.2, 94.0";
+        xAxisName.value = "时间 (月)";
+        yAxisName.value = "含量 (%)";
+        chartTitle.value = "稳定性考察 - 含量趋势分析";
+        chartSubtext.value = "长期稳定性 25℃±2℃ / 60%RH | 规格限: 下限95.0% 目标98.5%";
+        lineTypeSelect.value = "smooth";
+        yAxisMin.value = "90";
+        yAxisMax.value = "";
+        yAxisInterval.value = "1";
+        upperLimit.value = "";
+        lowerLimit.value = "95.0";
+        targetLine.value = "98.5";
+        renderChart();
+        showCopyMsg("已加载示例数据 (LSL=95.0，目标=98.5，USL未设)", true);
+    }
+    
+    function clearLimitsAndRange() {
+        yAxisMin.value = "";
+        yAxisMax.value = "";
+        yAxisInterval.value = "";
+        upperLimit.value = "";
+        lowerLimit.value = "";
+        targetLine.value = "";
+        renderChart();
+        showCopyMsg("已清空所有Y轴区间与标准上下限", true);
+    }
+    
+    function init() {
+        const chartDom = document.getElementById('trendChart');
+        myChart = echarts.init(chartDom);
+        renderChart();
+        generateBtn.addEventListener('click', () => { renderChart(); showCopyMsg("图表已更新", true); });
+        copyChartBtn.addEventListener('click', copyChartAsImage);
+        copyAsDataUrlBtn.addEventListener('click', copyChartAsImage);
+        resetExampleBtn.addEventListener('click', loadExampleData);
+        clearLimitsBtn.addEventListener('click', clearLimitsAndRange);
+        window.addEventListener('resize', () => { if (myChart) myChart.resize(); });
+        const inputs = [xDataInput, yDataInput, xAxisName, yAxisName, chartTitle, chartSubtext, yAxisMin, yAxisMax, yAxisInterval, upperLimit, lowerLimit, targetLine];
+        inputs.forEach(inp => inp.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); renderChart(); showCopyMsg("更新", true); } }));
+    }
+    
+    init();
+</script>
+</body>
+</html>
